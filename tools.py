@@ -14,14 +14,19 @@ def calculate_infrastructure_cost(server_type: str, instances: int) -> str:
 
 import json
 import os
+import datetime
 
-def export_plan_to_json(data: dict, filename: str = "final_plan.json") -> str:
-    """Exports the final implementation plan to a JSON file."""
+def export_plan_to_json(data: dict, filename: str = None) -> str:
+    """Exports the final implementation plan to a JSON file with a timestamp."""
     try:
         # Ensure output directory exists
         output_dir = "output"
         os.makedirs(output_dir, exist_ok=True)
         
+        if not filename or filename == "final_plan.json":
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"final_plan_{timestamp}.json"
+            
         filepath = os.path.join(output_dir, filename)
         
         with open(filepath, "w", encoding="utf-8") as f:
