@@ -56,6 +56,7 @@ To best support the development process, agents must adhere to the following aut
    - During the Implementation Phase, if the system detects an error (compile error, linter warning, test failed, or runtime error), the Agent is responsible for automatically analyzing the error logs.
    - The Agent must automatically propose a solution and fix the code directly without waiting for additional instructions from the user, unless the error relates to a complex system design or requires changing the initial requirements.
 
-2. **Auto Commit & Push:**
-   - After completing a Feature, finishing a minor Task, or successfully fixing a bug, the Agent must automatically package the changes (commit) with a clear, standardized message (e.g., `feat: add video upload function`, `fix: resolve crash on login`).
-   - Immediately afterward, automatically execute Git commands (or the corresponding tool) to push the code to the current branch on the remote repository, ensuring the CI/CD pipeline and progress are continuously synchronized.
+2. **Auto Commit & Push (Component-based):**
+   - Cần chia nhỏ các commit theo từng phần thay đổi độc lập (Component-based commits). Thay vì commit toàn bộ mọi thứ cùng lúc, Agent phải commit riêng rẽ cho từng tính năng, từng file hoặc từng phần logic (VD: frontend riêng, database schema riêng).
+   - Commit message phải bao gồm chữ ký danh tính (authored by AI Agent). VD: `feat(architecture): add component-based commit rule - by Antigravity Agent`.
+   - Ngay sau đó, tự động thực hiện các lệnh Git để push code lên nhánh hiện hành trên kho lưu trữ từ xa, đảm bảo tiến độ luôn đồng bộ.
