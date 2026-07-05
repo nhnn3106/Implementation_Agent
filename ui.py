@@ -166,20 +166,25 @@ if prompt := st.chat_input("Enter your request here (e.g., 'Create a video shari
 if st.session_state.user_approval_pending and not st.session_state.plan_finalized:
     st.info("The Moderator is waiting for your approval. You can provide feedback in the chat to revise it, OR finalize it below.")
     
-    plan_content = ""
-    for msg in reversed(st.session_state.messages):
-        if isinstance(msg, AIMessage) and "[ASK_USER]" in msg.content:
-            plan_content = msg.content
-            break
+    plan_messages = []
+    for msg in st.session_state.messages:
+        if isinstance(msg, AIMessage) and getattr(msg, "name", "") in ["moderator", "architecture"]:
+            clean_content = re.sub(r'<thought>.*?</thought>', '', msg.content, flags=re.DOTALL)
+            clean_content = re.sub(r'\[ROUTE:.*?\]', '', clean_content, flags=re.IGNORECASE)
+            clean_content = clean_content.replace("[ASK_USER]", "").strip()
+            if clean_content:
+                plan_messages.append(f"**[{getattr(msg, 'name', 'agent').upper()}]**\n{clean_content}")
+            
+    plan_content = "\n\n---\n\n".join(plan_messages)
             
     with st.expander("📄 Review Final Implementation Plan", expanded=True):
-        st.markdown(re.sub(r'<thought>.*?</thought>', '', plan_content, flags=re.DOTALL).replace("[ASK_USER]", "").strip())
+        st.markdown(plan_content)
         
     with st.form("finalize_form"):
         reqs = st.text_area("Additional Requirements or Notes (Bổ sung thêm kiến thức hay yêu cầu):")
         submitted = st.form_submit_button("✅ Chốt sổ (Export Plan)")
         if submitted:
-            history = [{"role": "user" if isinstance(m, HumanMessage) else "assistant", "content": m.content} for m in st.session_state.messages]
+            history = [{"role": getattr(m, "name", "assistant") if isinstance(m, AIMessage) else "user", "content": m.content} for m in st.session_state.messages]
             
             data = {
                 "project_status": "Approved",

@@ -70,23 +70,23 @@ def moderator_node(state: AgentState, config: RunnableConfig):
     # Check if they tried to ASK_USER prematurely
     if "[ASK_USER]" in response.content and current_loop < 6:
         # Intercept and force back to planner
-        intercept_msg = AIMessage(content=response.content.replace("[ASK_USER]", "\n\n[ROUTE: PLANNER]\n(System Intercept: Loop count not met, forced route to Planner)"))
+        intercept_msg = AIMessage(content=response.content.replace("[ASK_USER]", "\n\n[ROUTE: PLANNER]\n(System Intercept: Loop count not met, forced route to Planner)"), name="moderator")
         return {"messages": [intercept_msg], "debate_loop_count": current_loop + 1}
         
     if "[ASK_USER]" in response.content:
-        return {"messages": [AIMessage(content=response.content)], "user_approval_pending": True}
+        return {"messages": [AIMessage(content=response.content, name="moderator")], "user_approval_pending": True}
     
     # Normal route to planner or architecture, increment loop
     route_match = re.search(r'\[ROUTE:\s*(.*?)\]', response.content, re.IGNORECASE)
     if route_match:
-        return {"messages": [AIMessage(content=response.content)], "debate_loop_count": current_loop + 1}
+        return {"messages": [AIMessage(content=response.content, name="moderator")], "debate_loop_count": current_loop + 1}
 
     # If reached here without ASK_USER and without ROUTE, but loop < 6, FORCE route!
     if current_loop < 6:
-        intercept_msg = AIMessage(content=response.content + "\n\n[ROUTE: PLANNER]\n(System Intercept: Loop count not met and no route provided. Forced route to Planner)")
+        intercept_msg = AIMessage(content=response.content + "\n\n[ROUTE: PLANNER]\n(System Intercept: Loop count not met and no route provided. Forced route to Planner)", name="moderator")
         return {"messages": [intercept_msg], "debate_loop_count": current_loop + 1}
 
-    return {"messages": [AIMessage(content=response.content)]}
+    return {"messages": [AIMessage(content=response.content, name="moderator")]}
 
 def planner_node(state: AgentState, config: RunnableConfig):
     print("\n--- PLANNER ---")
@@ -99,7 +99,7 @@ def planner_node(state: AgentState, config: RunnableConfig):
     print(f"Planner Output:\n{response.content}\n")
     
     # Planner now operates autonomously and immediately finalizes requirements
-    return {"requirements_gathered": True, "messages": [AIMessage(content=response.content)]}
+    return {"requirements_gathered": True, "messages": [AIMessage(content=response.content, name="planner")]}
 
 def architecture_node(state: AgentState, config: RunnableConfig):
     print("\n--- ARCHITECTURE ---")
@@ -111,7 +111,7 @@ def architecture_node(state: AgentState, config: RunnableConfig):
     response = llm.invoke([sys_msg] + messages, config=config)
     
     print(f"Architecture Output:\n{response.content}\n")
-    return {"architecture_ready": True, "messages": [AIMessage(content=response.content)]}
+    return {"architecture_ready": True, "messages": [AIMessage(content=response.content, name="architecture")]}
 
 
 # Define the Graph

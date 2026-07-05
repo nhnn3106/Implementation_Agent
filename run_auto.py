@@ -4,7 +4,10 @@ from main import app
 from tools import export_plan_to_json
 import json
 
-prompt = """Tôi đang cần một website bán giày với số lượng người 100000 người trong mỗi phút thời gian sống của dự án lâu , không cần bảo trì nhiều, đồ trễ của web thì thấp nhất < 10 ms, thời gian hoạt động mãi mãi, giao diện phải dễ nhìn, có các tính năng chính như đăng ký, đăng nhập, quên mật khẩu, xem các mặt hàng, lọc mặt hàng theo các tiêu chí quan trọng như giá cả, độ hot, độ mới, hãng nào, size nào, màu nào, thêm giỏ hàng, xóa giỏ hàng, xem giỏ hàng, thanh toán bằng chuyển khoản và tiền mặt, comment, đánh giá mặt hàng, xem tiến độ giao hàng"""
+if len(sys.argv) > 1:
+    prompt = sys.argv[1]
+else:
+    prompt = """Tôi đang cần một website bán giày với số lượng người 100000 người trong mỗi phút thời gian sống của dự án lâu , không cần bảo trì nhiều, đồ trễ của web thì thấp nhất < 10 ms, thời gian hoạt động mãi mãi, giao diện phải dễ nhìn, có các tính năng chính như đăng ký, đăng nhập, quên mật khẩu, xem các mặt hàng, lọc mặt hàng theo các tiêu chí quan trọng như giá cả, độ hot, độ mới, hãng nào, size nào, màu nào, thêm giỏ hàng, xóa giỏ hàng, xem giỏ hàng, thanh toán bằng chuyển khoản và tiền mặt, comment, đánh giá mặt hàng, xem tiến độ giao hàng"""
 
 current_state = {
     "messages": [HumanMessage(content=prompt)],
@@ -27,12 +30,19 @@ for output in app.stream(current_state):
         print(f"[{key}] processed.")
         if current_state.get("user_approval_pending"):
             print("Approval pending, exporting plan...")
-            history = [{"role": "user" if isinstance(m, HumanMessage) else "assistant", "content": m.content} for m in current_state["messages"]]
-            plan_content = ""
-            for msg in reversed(current_state["messages"]):
-                if isinstance(msg, AIMessage) and "[ASK_USER]" in msg.content:
-                    plan_content = msg.content
-                    break
+            history = [{"role": getattr(m, "name", "assistant") if isinstance(m, AIMessage) else "user", "content": m.content} for m in current_state["messages"]]
+            
+            import re
+            plan_messages = []
+            for msg in current_state["messages"]:
+                if isinstance(msg, AIMessage) and getattr(msg, "name", "") in ["moderator", "architecture"]:
+                    clean_content = re.sub(r'<thought>.*?</thought>', '', msg.content, flags=re.DOTALL)
+                    clean_content = re.sub(r'\[ROUTE:.*?\]', '', clean_content, flags=re.IGNORECASE)
+                    clean_content = clean_content.replace("[ASK_USER]", "").strip()
+                    if clean_content:
+                        plan_messages.append(f"**[{getattr(msg, 'name', 'agent').upper()}]**\n{clean_content}")
+            
+            plan_content = "\n\n---\n\n".join(plan_messages)
             
             data = {
                 "project_status": "Approved by Auto-runner",
