@@ -20,6 +20,7 @@ class AgentState(TypedDict):
     architecture_ready: bool
     plan_finalized: bool
     user_approval_pending: bool
+    debate_loop_count: int
 
 # Initialize LLM
 llm = ChatOllama(model=os.getenv("MODEL_NAME", "gemma"), temperature=0.2)
@@ -35,7 +36,11 @@ def load_skill(skill_name: str) -> str:
 def moderator_node(state: AgentState, config: RunnableConfig):
     print("\n--- MODERATOR ---")
     messages = state['messages']
+    current_loop = state.get('debate_loop_count', 0)
     skill_content = load_skill("moderator")
+    
+    # Inject loop constraint
+    skill_content += f"\n\nCRITICAL: Current Debate Loop: {current_loop}/3. If loop < 3, you MUST route to PLANNER or ARCHITECTURE. You are FORBIDDEN from using [ASK_USER]."
     
     sys_msg = SystemMessage(content=skill_content)
     # Moderator evaluates the whole conversation
@@ -62,9 +67,20 @@ def moderator_node(state: AgentState, config: RunnableConfig):
             SystemMessage(content=f"Web Search Results for '{query}':\n{search_text}\n\nUse this information to continue evaluating the architecture.")
         ]}
         
+    # Check if they tried to ASK_USER prematurely
+    if "[ASK_USER]" in response.content and current_loop < 3:
+        # Intercept and force back to planner
+        intercept_msg = AIMessage(content=response.content.replace("[ASK_USER]", "\n\n[ROUTE: PLANNER]\n(System Intercept: Loop count not met, forced route to Planner)"))
+        return {"messages": [intercept_msg], "debate_loop_count": current_loop + 1}
+        
     if "[ASK_USER]" in response.content:
         return {"messages": [AIMessage(content=response.content)], "user_approval_pending": True}
     
+    # Normal route to planner or architecture, increment loop
+    route_match = re.search(r'\[ROUTE:\s*(.*?)\]', response.content, re.IGNORECASE)
+    if route_match:
+        return {"messages": [AIMessage(content=response.content)], "debate_loop_count": current_loop + 1}
+
     return {"messages": [AIMessage(content=response.content)]}
 
 def planner_node(state: AgentState, config: RunnableConfig):
@@ -146,7 +162,7 @@ def run_chat():
     print("Welcome to A2A System.")
     
     # Initialize state
-    current_state = {"messages": [], "requirements_gathered": False, "architecture_ready": False, "plan_finalized": False, "user_approval_pending": False}
+    current_state = {"messages": [], "requirements_gathered": False, "architecture_ready": False, "plan_finalized": False, "user_approval_pending": False, "debate_loop_count": 0}
     
     while True:
         user_input = input("\nUser: ")

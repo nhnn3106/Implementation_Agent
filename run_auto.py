@@ -11,7 +11,8 @@ current_state = {
     "requirements_gathered": False,
     "architecture_ready": False,
     "plan_finalized": False,
-    "user_approval_pending": False
+    "user_approval_pending": False,
+    "debate_loop_count": 0
 }
 
 print("Running graph...")
@@ -19,7 +20,7 @@ for output in app.stream(current_state):
     for key, value in output.items():
         if "messages" in value:
             current_state["messages"].extend(value["messages"])
-        for state_key in ["requirements_gathered", "architecture_ready", "plan_finalized", "user_approval_pending"]:
+        for state_key in ["requirements_gathered", "architecture_ready", "plan_finalized", "user_approval_pending", "debate_loop_count"]:
             if state_key in value:
                 current_state[state_key] = value[state_key]
 

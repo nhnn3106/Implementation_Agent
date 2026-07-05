@@ -95,7 +95,8 @@ if prompt := st.chat_input("Enter your request here (e.g., 'Create a video shari
             "requirements_gathered": st.session_state.requirements_gathered,
             "architecture_ready": st.session_state.architecture_ready,
             "plan_finalized": st.session_state.plan_finalized,
-            "user_approval_pending": st.session_state.user_approval_pending
+            "user_approval_pending": st.session_state.user_approval_pending,
+            "debate_loop_count": st.session_state.get("debate_loop_count", 0)
         }
         
         # Run through the graph
@@ -126,6 +127,10 @@ if prompt := st.chat_input("Enter your request here (e.g., 'Create a video shari
                             st.session_state.messages.append(AIMessage(content=full_content))
                             
                     # Track sequence dynamically
+                    for state_key in ["requirements_gathered", "architecture_ready", "plan_finalized", "user_approval_pending", "debate_loop_count"]:
+                        if state_key in value:
+                            st.session_state[state_key] = value[state_key]
+
                     if key == "planner":
                         st.session_state.sequence.append("    M->>P: Forward to Planner")
                         st.session_state.sequence.append("    P-->>M: Requirements BRD")
