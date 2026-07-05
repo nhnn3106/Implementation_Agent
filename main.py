@@ -26,11 +26,21 @@ class AgentState(TypedDict):
 llm = ChatOllama(model=os.getenv("MODEL_NAME", "gemma"), temperature=0.2)
 
 def load_skill(skill_name: str) -> str:
-    path = os.path.join(".agents", "skills", skill_name, "SKILL.md")
-    if os.path.exists(path):
-        with open(path, "r", encoding="utf-8") as f:
-            return f.read()
-    return f"You are a {skill_name} expert."
+    skill_path = os.path.join(".agents", "skills", skill_name, "SKILL.md")
+    rules_path = os.path.join(".agents", "AGENTS.md")
+    
+    content = ""
+    if os.path.exists(skill_path):
+        with open(skill_path, "r", encoding="utf-8") as f:
+            content += f.read()
+    else:
+        content += f"You are a {skill_name} expert."
+        
+    if os.path.exists(rules_path):
+        with open(rules_path, "r", encoding="utf-8") as f:
+            content += "\n\n# GLOBAL SYSTEM RULES & TEMPLATES\n\n" + f.read()
+            
+    return content
 
 # Nodes
 def moderator_node(state: AgentState, config: RunnableConfig):
