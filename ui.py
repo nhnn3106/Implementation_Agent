@@ -21,6 +21,12 @@ st.sidebar.markdown("""
 3. **Architecture**: System Design
 """)
 
+if st.sidebar.button("🗑️ Reset Conversation", use_container_width=True):
+    for key in ["messages", "requirements_gathered", "architecture_ready", "plan_finalized", "user_approval_pending", "debate_loop_count", "sequence"]:
+        if key in st.session_state:
+            del st.session_state[key]
+    st.rerun()
+
 if "messages" not in st.session_state:
     st.session_state.messages = []
     st.session_state.requirements_gathered = False
@@ -181,23 +187,32 @@ if st.session_state.user_approval_pending and not st.session_state.plan_finalize
         st.markdown(plan_content)
         
     with st.form("finalize_form"):
-        reqs = st.text_area("Additional Requirements or Notes (Bổ sung thêm kiến thức hay yêu cầu):")
-        submitted = st.form_submit_button("✅ Chốt sổ (Export Plan)")
+        reqs = st.text_area("Additional Requirements or Notes (Bổ sung thêm yêu cầu). Để trống nếu đồng ý chốt sổ:")
+        submitted = st.form_submit_button("✅ Submit")
         if submitted:
-            history = [{"role": getattr(m, "name", "assistant") if isinstance(m, AIMessage) else "user", "content": m.content} for m in st.session_state.messages]
-            
-            data = {
-                "project_status": "Approved",
-                "additional_requirements": reqs,
-                "implementation_plan": plan_content,
-                "conversation_history": history
-            }
-            from tools import export_plan_to_md
-            res = export_plan_to_md(data)
-            st.session_state.plan_finalized = True
-            st.session_state.user_approval_pending = False
-            st.success(res)
-            st.rerun()
+            if reqs.strip():
+                # User provided feedback, loop again
+                st.session_state.messages.append(HumanMessage(content=f"User Feedback on Final Plan:\n{reqs}"))
+                st.session_state.user_approval_pending = False
+                st.session_state.plan_finalized = False
+                st.session_state.debate_loop_count = 4  # Reset loop counter to force 1 more full round (loops 5 and 6)
+                st.rerun()
+            else:
+                # User approved, export and finalize
+                history = [{"role": getattr(m, "name", "assistant") if isinstance(m, AIMessage) else "user", "content": m.content} for m in st.session_state.messages]
+                
+                data = {
+                    "project_status": "Approved",
+                    "additional_requirements": "None",
+                    "implementation_plan": plan_content,
+                    "conversation_history": history
+                }
+                from tools import export_plan_to_md
+                res = export_plan_to_md(data)
+                st.session_state.plan_finalized = True
+                st.session_state.user_approval_pending = False
+                st.success(res)
+                st.rerun()
 
 if st.session_state.plan_finalized:
     st.success("Implementation Plan Finalized and Exported to ./output/ !")
