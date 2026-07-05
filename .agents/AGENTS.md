@@ -6,8 +6,8 @@ The A2A (Agent-to-Agent) architecture separates roles into **Planner** (business
 
 1. **User** sends the initial request (e.g., "Create a video sharing app") to the **Moderator**.
 2. **Moderator** identifies this as the requirements-gathering phase and forwards it to the **Planner**.
-3. **Planner** activates a *Human-in-the-loop (HITL)* loop, continuously doing QA with the **User** until sufficient requirements are gathered.
-4. **Planner** sends the business requirements summary back to the **Moderator**.
+3. **Planner** acts autonomously. It immediately analyzes the request, makes logical assumptions for any missing details, and generates a Business Requirement Document (BRD) without asking the user questions.
+4. **Planner** sends the finalized business requirements summary back to the **Moderator**.
 5. **Moderator** forwards these requirements to **Architecture** for system design (Tech stack, Database, Microservices/Monolithic, Infrastructure).
 6. **Architecture** returns the technical blueprint to the **Moderator**.
 7. **Moderator** conducts a Review: Compares the architecture against requirements, estimates costs (AWS, API...), and time (man-months). If unreasonable, requests Architecture to revise.
