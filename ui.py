@@ -8,13 +8,11 @@ st.set_page_config(page_title="A2A Architecture Agent", layout="wide")
 
 st.title("🚀 A2A Implementation Agent Workflow")
 
-# Display the Graph using LangGraph's mermaid capability
-st.sidebar.title("Workflow Graph")
-try:
-    png_bytes = app.get_graph().draw_mermaid_png()
-    st.sidebar.image(png_bytes, use_column_width=True)
-except Exception as e:
-    st.sidebar.warning(f"Could not render graph image automatically. ({e})")
+import streamlit.components.v1 as components
+
+# Dynamic Sequence Diagram
+st.sidebar.title("📡 Live Agent Sequence")
+sequence_placeholder = st.sidebar.empty()
 
 st.sidebar.markdown("""
 **Current Roles:**
@@ -29,7 +27,33 @@ if "messages" not in st.session_state:
     st.session_state.architecture_ready = False
     st.session_state.plan_finalized = False
     st.session_state.user_approval_pending = False
-    
+    st.session_state.sequence = [
+        "sequenceDiagram", 
+        "    participant U as User", 
+        "    participant M as Moderator", 
+        "    participant P as Planner", 
+        "    participant A as Architecture",
+        "    participant Web as Web Search"
+    ]
+
+def render_sequence():
+    mermaid_code = "\n".join(st.session_state.sequence)
+    with sequence_placeholder:
+        components.html(
+            f"""
+            <div class="mermaid">
+                {mermaid_code}
+            </div>
+            <script type="module">
+                import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+                mermaid.initialize({{ startOnLoad: true, theme: 'dark' }});
+            </script>
+            """,
+            height=600, scrolling=True
+        )
+
+# Render initial sequence
+render_sequence()
 # Render chat history
 for msg in st.session_state.messages:
     if isinstance(msg, HumanMessage):
@@ -47,6 +71,8 @@ if prompt := st.chat_input("Enter your request here (e.g., 'Create a video shari
         
         # Add to state
         st.session_state.messages.append(HumanMessage(content=prompt))
+        st.session_state.sequence.append("    U->>M: User Request")
+        render_sequence()
         
         # Construct current state
         current_state = {
@@ -67,6 +93,24 @@ if prompt := st.chat_input("Enter your request here (e.g., 'Create a video shari
                         for n_msg in new_messages:
                             st.chat_message("assistant").write(f"**{key.upper()}**: {n_msg.content}")
                             st.session_state.messages.append(AIMessage(content=f"**{key.upper()}**: {n_msg.content}"))
+                            
+                    # Track sequence dynamically
+                    if key == "planner":
+                        st.session_state.sequence.append("    M->>P: Forward to Planner")
+                        st.session_state.sequence.append("    P-->>M: Requirements BRD")
+                    elif key == "architecture":
+                        st.session_state.sequence.append("    M->>A: Forward to Architecture")
+                        st.session_state.sequence.append("    A-->>M: Architecture Blueprint")
+                    elif key == "moderator":
+                        if any("Web Search Results for" in msg.content for msg in value.get("messages", []) if isinstance(msg, SystemMessage)):
+                            st.session_state.sequence.append("    M->>Web: Search Internet")
+                            st.session_state.sequence.append("    Web-->>M: Search Results")
+                        elif value.get("user_approval_pending"):
+                            st.session_state.sequence.append("    M->>U: Request Approval [ASK_USER]")
+                        elif not value.get("architecture_ready") and st.session_state.requirements_gathered:
+                            st.session_state.sequence.append("    M->>A: REVISE Design!")
+                    
+                    render_sequence()
                     
                     if "requirements_gathered" in value:
                         st.session_state.requirements_gathered = value["requirements_gathered"]
