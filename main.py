@@ -6,7 +6,7 @@ import operator
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
 from langchain_ollama import ChatOllama
 from langgraph.graph import StateGraph, END
-from tools import tools_list
+from tools import tools_list, export_plan_to_json
 from validation import validate_prompt
 
 # Load environment variables
@@ -18,6 +18,7 @@ class AgentState(TypedDict):
     requirements_gathered: bool
     architecture_ready: bool
     plan_finalized: bool
+    user_approval_pending: bool
 
 # Initialize LLM
 llm = ChatOllama(model=os.getenv("MODEL_NAME", "gemma"), temperature=0.2)
@@ -48,10 +49,17 @@ def moderator_node(state: AgentState):
         response = llm.invoke([sys_msg] + messages)
         print(f"Moderator Output:\n{response.content}\n")
         
+        if "[EXPORT_PLAN]" in response.content:
+            res = export_plan_to_json(response.content)
+            return {"messages": [AIMessage(content=f"System: {res}")], "plan_finalized": True, "user_approval_pending": False}
+            
+        if "[ASK_USER]" in response.content:
+            return {"messages": [AIMessage(content=response.content)], "user_approval_pending": True}
+        
         if "REVISE" in response.content.upper():
             return {"messages": [AIMessage(content=response.content)], "architecture_ready": False}
         else:
-            return {"messages": [AIMessage(content=response.content)], "plan_finalized": True}
+            return {"messages": [AIMessage(content=response.content)]}
 
 def planner_node(state: AgentState):
     print("\n--- PLANNER ---")
@@ -94,6 +102,8 @@ workflow.set_entry_point("moderator")
 def route_from_moderator(state: AgentState):
     if state.get("plan_finalized"):
         return END
+    if state.get("user_approval_pending"):
+        return END
     if not state.get("requirements_gathered"):
         return "planner"
     return "architecture"
@@ -112,7 +122,7 @@ def run_chat():
     print("Welcome to A2A System.")
     
     # Initialize state
-    current_state = {"messages": [], "requirements_gathered": False, "architecture_ready": False, "plan_finalized": False}
+    current_state = {"messages": [], "requirements_gathered": False, "architecture_ready": False, "plan_finalized": False, "user_approval_pending": False}
     
     while True:
         user_input = input("\nUser: ")
@@ -133,7 +143,7 @@ def run_chat():
                     current_state["messages"].extend(value["messages"])
                 
                 # Update state flags
-                for state_key in ["requirements_gathered", "architecture_ready", "plan_finalized"]:
+                for state_key in ["requirements_gathered", "architecture_ready", "plan_finalized", "user_approval_pending"]:
                     if state_key in value:
                         current_state[state_key] = value[state_key]
             

@@ -28,6 +28,7 @@ if "messages" not in st.session_state:
     st.session_state.requirements_gathered = False
     st.session_state.architecture_ready = False
     st.session_state.plan_finalized = False
+    st.session_state.user_approval_pending = False
     
 # Render chat history
 for msg in st.session_state.messages:
@@ -52,7 +53,8 @@ if prompt := st.chat_input("Enter your request here (e.g., 'Create a video shari
             "messages": st.session_state.messages,
             "requirements_gathered": st.session_state.requirements_gathered,
             "architecture_ready": st.session_state.architecture_ready,
-            "plan_finalized": st.session_state.plan_finalized
+            "plan_finalized": st.session_state.plan_finalized,
+            "user_approval_pending": st.session_state.user_approval_pending
         }
         
         # Run through the graph
@@ -72,6 +74,10 @@ if prompt := st.chat_input("Enter your request here (e.g., 'Create a video shari
                         st.session_state.architecture_ready = value["architecture_ready"]
                     if "plan_finalized" in value:
                         st.session_state.plan_finalized = value["plan_finalized"]
+                    if "user_approval_pending" in value:
+                        st.session_state.user_approval_pending = value["user_approval_pending"]
                 
             if st.session_state.plan_finalized:
-                st.success("Implementation Plan Finalized!")
+                st.success("Implementation Plan Finalized and Exported!")
+            elif st.session_state.user_approval_pending:
+                st.info("The Moderator is waiting for your approval. Please type 'Duyệt', 'Ok', 'Accept' to save the plan, or provide feedback to revise it.")
