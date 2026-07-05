@@ -130,7 +130,7 @@ if prompt := st.chat_input("Enter your request here (e.g., 'Create a video shari
                             full_content = f"**{key.upper()}**: {n_msg.content}"
                             with st.chat_message("assistant"):
                                 render_assistant_message(full_content)
-                            st.session_state.messages.append(AIMessage(content=full_content))
+                            st.session_state.messages.append(AIMessage(content=full_content, name=key))
                             
                     # Track sequence dynamically
                     for state_key in ["requirements_gathered", "architecture_ready", "plan_finalized", "user_approval_pending", "debate_loop_count"]:
@@ -174,10 +174,11 @@ if st.session_state.user_approval_pending and not st.session_state.plan_finalize
     
     plan_content = ""
     for msg in reversed(st.session_state.messages):
-        if isinstance(msg, AIMessage) and getattr(msg, "name", "") == "moderator":
+        if isinstance(msg, AIMessage) and (getattr(msg, "name", "") == "moderator" or msg.content.startswith("**MODERATOR**:")):
             clean_content = re.sub(r'<thought>.*?</thought>', '', msg.content, flags=re.DOTALL)
             clean_content = re.sub(r'\[ROUTE:.*?\]', '', clean_content, flags=re.IGNORECASE)
-            clean_content = clean_content.replace("[ASK_USER]", "").strip()
+            clean_content = clean_content.replace("[ASK_USER]", "")
+            clean_content = clean_content.replace("**MODERATOR**:", "").strip()
             if clean_content:
                 plan_content = clean_content
                 break
