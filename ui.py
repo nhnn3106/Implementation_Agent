@@ -192,8 +192,8 @@ if st.session_state.user_approval_pending and not st.session_state.plan_finalize
                 "implementation_plan": plan_content,
                 "conversation_history": history
             }
-            from tools import export_plan_to_json
-            res = export_plan_to_json(data)
+            from tools import export_plan_to_md
+            res = export_plan_to_md(data)
             st.session_state.plan_finalized = True
             st.session_state.user_approval_pending = False
             st.success(res)

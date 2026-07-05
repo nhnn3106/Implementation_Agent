@@ -91,7 +91,8 @@ def moderator_node(state: AgentState, config: RunnableConfig):
             SystemMessage(content="System Intercept: You forgot to include a route tag! Please output a critique with [ROUTE: PLANNER] or [ROUTE: ARCHITECTURE].")
         ]}
 
-    return {"messages": [AIMessage(content=response.content, name="moderator")]}
+    # Loop is complete (>= 6) and no route/ask_user was provided. Force user approval.
+    return {"messages": [AIMessage(content=response.content + "\n\n[ASK_USER]", name="moderator")], "user_approval_pending": True}
 
 def planner_node(state: AgentState, config: RunnableConfig):
     print("\n--- PLANNER ---")

@@ -50,6 +50,7 @@ for output in app.stream(current_state):
                 "implementation_plan": plan_content,
                 "conversation_history": history
             }
-            res = export_plan_to_json(data)
+            from tools import export_plan_to_md
+            res = export_plan_to_md(data)
             print(f"Export result: {res}")
             sys.exit(0)
