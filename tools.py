@@ -47,21 +47,10 @@ def export_plan_to_md(data: dict, filename: str = None) -> str:
             
         filepath = os.path.join(output_dir, filename)
         
-        md_content = f"# 🚀 Implementation Plan\n\n"
-        md_content += f"**Status:** {data.get('project_status', 'N/A')}\n\n"
-        
+        md_content = data.get('implementation_plan', '')
         reqs = data.get('additional_requirements', '').strip()
-        if reqs:
-            md_content += f"## 📌 Additional Requirements\n{reqs}\n\n"
-            
-        md_content += f"## 🏗️ Architecture & Blueprint\n{data.get('implementation_plan', '')}\n\n"
-        md_content += f"## 💬 Debate & Conversation History\n"
-        
-        for msg in data.get('conversation_history', []):
-            role = str(msg.get('role')).upper()
-            content = str(msg.get('content'))
-            if content.strip():
-                md_content += f"**[{role}]**:\n{content}\n\n"
+        if reqs and reqs != "None":
+            md_content += f"\n\n## 📌 Additional User Requirements\n{reqs}\n"
         
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(md_content)

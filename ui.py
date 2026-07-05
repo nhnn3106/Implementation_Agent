@@ -172,16 +172,15 @@ if prompt := st.chat_input("Enter your request here (e.g., 'Create a video shari
 if st.session_state.user_approval_pending and not st.session_state.plan_finalized:
     st.info("The Moderator is waiting for your approval. You can provide feedback in the chat to revise it, OR finalize it below.")
     
-    plan_messages = []
-    for msg in st.session_state.messages:
-        if isinstance(msg, AIMessage) and getattr(msg, "name", "") in ["moderator", "architecture"]:
+    plan_content = ""
+    for msg in reversed(st.session_state.messages):
+        if isinstance(msg, AIMessage) and getattr(msg, "name", "") == "moderator":
             clean_content = re.sub(r'<thought>.*?</thought>', '', msg.content, flags=re.DOTALL)
             clean_content = re.sub(r'\[ROUTE:.*?\]', '', clean_content, flags=re.IGNORECASE)
             clean_content = clean_content.replace("[ASK_USER]", "").strip()
             if clean_content:
-                plan_messages.append(f"**[{getattr(msg, 'name', 'agent').upper()}]**\n{clean_content}")
-            
-    plan_content = "\n\n---\n\n".join(plan_messages)
+                plan_content = clean_content
+                break
             
     with st.expander("📄 Review Final Implementation Plan", expanded=True):
         st.markdown(plan_content)
@@ -207,8 +206,10 @@ if st.session_state.user_approval_pending and not st.session_state.plan_finalize
                     "implementation_plan": plan_content,
                     "conversation_history": history
                 }
-                from tools import export_plan_to_md
-                res = export_plan_to_md(data)
+                import importlib
+                import tools
+                importlib.reload(tools)
+                res = tools.export_plan_to_md(data)
                 st.session_state.plan_finalized = True
                 st.session_state.user_approval_pending = False
                 st.success(res)
