@@ -69,9 +69,12 @@ def moderator_node(state: AgentState, config: RunnableConfig):
         
     # Check if they tried to ASK_USER prematurely
     if "[ASK_USER]" in response.content and current_loop < 6:
-        # Intercept and force back to planner
-        intercept_msg = AIMessage(content=response.content.replace("[ASK_USER]", "\n\n[ROUTE: PLANNER]\n(System Intercept: Loop count not met, forced route to Planner)"), name="moderator")
-        return {"messages": [intercept_msg], "debate_loop_count": current_loop + 1}
+        # Intercept and return to moderator to rethink
+        clean_content = response.content.replace("[ASK_USER]", "")
+        return {"messages": [
+            AIMessage(content=clean_content, name="moderator"),
+            SystemMessage(content="System Intercept: You attempted to use [ASK_USER] but you have not completed 3 rounds of debate (6 loops). Please evaluate the previous responses and include [ROUTE: PLANNER] or [ROUTE: ARCHITECTURE].")
+        ]}
         
     if "[ASK_USER]" in response.content:
         return {"messages": [AIMessage(content=response.content, name="moderator")], "user_approval_pending": True}
@@ -81,10 +84,12 @@ def moderator_node(state: AgentState, config: RunnableConfig):
     if route_match:
         return {"messages": [AIMessage(content=response.content, name="moderator")], "debate_loop_count": current_loop + 1}
 
-    # If reached here without ASK_USER and without ROUTE, but loop < 6, FORCE route!
+    # If reached here without ASK_USER and without ROUTE, but loop < 6, intercept!
     if current_loop < 6:
-        intercept_msg = AIMessage(content=response.content + "\n\n[ROUTE: PLANNER]\n(System Intercept: Loop count not met and no route provided. Forced route to Planner)", name="moderator")
-        return {"messages": [intercept_msg], "debate_loop_count": current_loop + 1}
+        return {"messages": [
+            AIMessage(content=response.content, name="moderator"),
+            SystemMessage(content="System Intercept: You forgot to include a route tag! Please output a critique with [ROUTE: PLANNER] or [ROUTE: ARCHITECTURE].")
+        ]}
 
     return {"messages": [AIMessage(content=response.content, name="moderator")]}
 
@@ -132,13 +137,13 @@ def route_from_moderator(state: AgentState):
     if state.get("user_approval_pending"):
         return END
         
-    # Check if the last message is a search result. If so, loop back to moderator.
+    # Check if the last message is a search result or intercept. If so, loop back to moderator.
     if len(state["messages"]) > 0:
         last_msg = state["messages"][-1]
         
-        # If it was a search result
-        if isinstance(last_msg, SystemMessage) and "Web Search Results for" in last_msg.content:
-            return "moderator"
+        if isinstance(last_msg, SystemMessage):
+            if "Web Search Results for" in last_msg.content or "System Intercept:" in last_msg.content:
+                return "moderator"
             
         # Parse route
         import re
