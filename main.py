@@ -49,6 +49,26 @@ def moderator_node(state: AgentState):
         response = llm.invoke([sys_msg] + messages)
         print(f"Moderator Output:\n{response.content}\n")
         
+        # Intercept Search Command
+        import re
+        search_match = re.search(r'\[SEARCH:\s*(.*?)\]', response.content)
+        if search_match:
+            from duckduckgo_search import DDGS
+            query = search_match.group(1).strip()
+            print(f"Moderator is searching the web for: {query}")
+            try:
+                results = DDGS().text(query, max_results=3)
+                search_text = "\n".join([f"- {r['title']}: {r['body']}" for r in results])
+                if not search_text:
+                    search_text = "No results found."
+            except Exception as e:
+                search_text = f"Search failed: {e}"
+            
+            return {"messages": [
+                AIMessage(content=response.content),
+                SystemMessage(content=f"Web Search Results for '{query}':\n{search_text}\n\nUse this information to continue evaluating the architecture.")
+            ]}
+            
         if "[EXPORT_PLAN]" in response.content:
             res = export_plan_to_json(response.content)
             return {"messages": [AIMessage(content=f"System: {res}")], "plan_finalized": True, "user_approval_pending": False}
@@ -106,6 +126,13 @@ def route_from_moderator(state: AgentState):
         return END
     if not state.get("requirements_gathered"):
         return "planner"
+        
+    # Check if the last message is a search result. If so, loop back to moderator.
+    if len(state["messages"]) > 0:
+        last_msg = state["messages"][-1]
+        if isinstance(last_msg, SystemMessage) and "Web Search Results for" in last_msg.content:
+            return "moderator"
+            
     return "architecture"
 
 workflow.add_conditional_edges("moderator", route_from_moderator)
