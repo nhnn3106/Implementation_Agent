@@ -58,5 +58,10 @@ To best support the development process, agents must adhere to the following aut
 
 2. **Auto Commit & Push (Component-based):**
    - Cần chia nhỏ các commit theo từng phần thay đổi độc lập (Component-based commits). Thay vì commit toàn bộ mọi thứ cùng lúc, Agent phải commit riêng rẽ cho từng tính năng, từng file hoặc từng phần logic (VD: frontend riêng, database schema riêng).
-   - Commit message phải bao gồm chữ ký danh tính (authored by AI Agent). VD: `feat(architecture): add component-based commit rule - by Antigravity Agent`.
+   - Bắt buộc tuân thủ tiền tố phân loại commit (Commit Types):
+     * `feat`: thêm chức năng mới.
+     * `update`: cải thiện chức năng hiện có.
+     * `delete`: xóa bỏ chức năng cũ hoặc file thừa.
+     * `maintain`: bảo trì code, tái cấu trúc (refactor) và sửa lỗi.
+   - Commit message phải bao gồm chữ ký danh tính (authored by AI Agent). VD: `update(architecture): refine commit types - by Antigravity Agent`.
    - Ngay sau đó, tự động thực hiện các lệnh Git để push code lên nhánh hiện hành trên kho lưu trữ từ xa, đảm bảo tiến độ luôn đồng bộ.
