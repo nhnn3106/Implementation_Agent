@@ -40,7 +40,7 @@ def moderator_node(state: AgentState, config: RunnableConfig):
     skill_content = load_skill("moderator")
     
     # Inject loop constraint
-    skill_content += f"\n\nCRITICAL: Current Debate Loop: {current_loop}/3. If loop < 3, you MUST route to PLANNER or ARCHITECTURE. You are FORBIDDEN from using [ASK_USER]."
+    skill_content += f"\n\nCRITICAL: Current Debate Loop: {current_loop}/6. (1 loop = 1 route. You need 6 loops to complete 3 full rounds). If loop < 6, you MUST route to PLANNER or ARCHITECTURE. You are FORBIDDEN from using [ASK_USER]."
     
     sys_msg = SystemMessage(content=skill_content)
     # Moderator evaluates the whole conversation
@@ -68,7 +68,7 @@ def moderator_node(state: AgentState, config: RunnableConfig):
         ]}
         
     # Check if they tried to ASK_USER prematurely
-    if "[ASK_USER]" in response.content and current_loop < 3:
+    if "[ASK_USER]" in response.content and current_loop < 6:
         # Intercept and force back to planner
         intercept_msg = AIMessage(content=response.content.replace("[ASK_USER]", "\n\n[ROUTE: PLANNER]\n(System Intercept: Loop count not met, forced route to Planner)"))
         return {"messages": [intercept_msg], "debate_loop_count": current_loop + 1}
@@ -80,6 +80,11 @@ def moderator_node(state: AgentState, config: RunnableConfig):
     route_match = re.search(r'\[ROUTE:\s*(.*?)\]', response.content, re.IGNORECASE)
     if route_match:
         return {"messages": [AIMessage(content=response.content)], "debate_loop_count": current_loop + 1}
+
+    # If reached here without ASK_USER and without ROUTE, but loop < 6, FORCE route!
+    if current_loop < 6:
+        intercept_msg = AIMessage(content=response.content + "\n\n[ROUTE: PLANNER]\n(System Intercept: Loop count not met and no route provided. Forced route to Planner)")
+        return {"messages": [intercept_msg], "debate_loop_count": current_loop + 1}
 
     return {"messages": [AIMessage(content=response.content)]}
 
