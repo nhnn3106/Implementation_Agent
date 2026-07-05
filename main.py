@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 from typing import Annotated, Sequence, TypedDict
 import operator
 
-from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
+from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
 from langchain_community.chat_models import ChatOllama
 from langgraph.graph import StateGraph, END
 from tools import tools_list
@@ -20,50 +20,65 @@ class AgentState(TypedDict):
     plan_finalized: bool
 
 # Initialize LLM
-llm = ChatOllama(model=os.getenv("MODEL_NAME", "gemma"), temperature=0)
+llm = ChatOllama(model=os.getenv("MODEL_NAME", "gemma"), temperature=0.2)
+
+def load_skill(skill_name: str) -> str:
+    path = os.path.join(".agents", "skills", skill_name, "SKILL.md")
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read()
+    return f"You are a {skill_name} expert."
 
 # Nodes
 def moderator_node(state: AgentState):
-    print("--- MODERATOR ---")
+    print("\n--- MODERATOR ---")
     messages = state['messages']
+    skill_content = load_skill("moderator")
     
     if not state.get("requirements_gathered"):
-        # First time, forward to Planner
+        print("Moderator: Forwarding to Planner to gather requirements.")
         return {"messages": [AIMessage(content="Forwarding to Planner to gather requirements.")]}
     elif not state.get("architecture_ready"):
-        # Requirements gathered, forward to Architecture
+        print("Moderator: Requirements complete. Forwarding to Architecture.")
         return {"messages": [AIMessage(content="Requirements complete. Forwarding to Architecture.")]}
     else:
-        # Architecture is ready, Review it
-        last_msg = messages[-1].content
-        print("Moderator Reviewing Architecture...")
+        print("Moderator: Reviewing Architecture...")
+        sys_msg = SystemMessage(content=skill_content)
+        # Moderator evaluates the whole conversation
+        response = llm.invoke([sys_msg] + messages)
+        print(f"Moderator Output:\n{response.content}\n")
         
-        if "REJECT" in last_msg:
-            return {"messages": [AIMessage(content="Architecture rejected. Need revision.")], "architecture_ready": False}
+        if "REVISE" in response.content.upper():
+            return {"messages": [AIMessage(content=response.content)], "architecture_ready": False}
         else:
-            final_plan = "# Implementation_Plan.md\n\n(Auto-generated plan based on architecture)"
-            return {"messages": [AIMessage(content=f"Plan finalized.\n{final_plan}")], "plan_finalized": True}
+            return {"messages": [AIMessage(content=response.content)], "plan_finalized": True}
 
 def planner_node(state: AgentState):
-    print("--- PLANNER ---")
+    print("\n--- PLANNER ---")
     messages = state['messages']
+    skill_content = load_skill("planner")
     
-    human_messages = [m for m in messages if isinstance(m, HumanMessage)]
-    last_user_msg = human_messages[-1].content if human_messages else ""
+    sys_msg = SystemMessage(content=skill_content)
+    response = llm.invoke([sys_msg] + messages)
     
-    # Simple simulated HITL logic
-    if "[END_QA]" in last_user_msg:
-        print("Planner: Requirements gathered successfully.")
-        return {"requirements_gathered": True, "messages": [AIMessage(content="Requirements Document generated.")]}
+    print(f"Planner Output:\n{response.content}\n")
+    
+    if "[END_QA]" in response.content:
+        return {"requirements_gathered": True, "messages": [AIMessage(content=response.content)]}
     else:
-        print("Planner: Asking clarifying question...")
-        # Simulate wait for user input
-        return {"messages": [AIMessage(content="Can you clarify the target platform (Web/Mobile)?")]}
+        return {"messages": [AIMessage(content=response.content)]}
 
 def architecture_node(state: AgentState):
-    print("--- ARCHITECTURE ---")
-    blueprint = "Technical Blueprint: Microservices, React Frontend, Node.js Backend, PostgreSQL."
-    return {"architecture_ready": True, "messages": [AIMessage(content=f"Architecture completed: {blueprint}")]}
+    print("\n--- ARCHITECTURE ---")
+    messages = state['messages']
+    skill_content = load_skill("architecture")
+    
+    sys_msg = SystemMessage(content=skill_content)
+    # Architecture only needs to see the final BRD from planner and user request, but we pass full context
+    response = llm.invoke([sys_msg] + messages)
+    
+    print(f"Architecture Output:\n{response.content}\n")
+    return {"architecture_ready": True, "messages": [AIMessage(content=response.content)]}
 
 
 # Define the Graph
@@ -90,7 +105,7 @@ workflow.add_conditional_edges("moderator", route_from_moderator)
 def route_from_planner(state: AgentState):
     if state.get("requirements_gathered"):
         return "moderator"
-    return END
+    return END # Stop and wait for user input
 
 workflow.add_edge("architecture", "moderator")
 
@@ -100,19 +115,39 @@ app = workflow.compile()
 def run_chat():
     print("Welcome to A2A System.")
     
-    # No API Key needed for Local Model
-
-    user_input = input("User: ")
+    # Initialize state
+    current_state = {"messages": [], "requirements_gathered": False, "architecture_ready": False, "plan_finalized": False}
     
-    if not validate_prompt(user_input):
-        print("System: Malicious input detected. Request blocked.")
-        return
+    while True:
+        user_input = input("\nUser: ")
+        if user_input.lower() in ['quit', 'exit']:
+            break
+            
+        if not validate_prompt(user_input):
+            print("System: Malicious input detected. Request blocked.")
+            continue
+            
+        current_state["messages"].append(HumanMessage(content=user_input))
         
-    inputs = {"messages": [HumanMessage(content=user_input)], "requirements_gathered": False, "architecture_ready": False, "plan_finalized": False}
-    
-    # Run the graph
-    for output in app.stream(inputs):
-        pass # output is handled inside nodes for this demo
+        # Stream the graph execution
+        for output in app.stream(current_state):
+            for key, value in output.items():
+                if "messages" in value:
+                    # Update current state messages
+                    current_state["messages"].extend(value["messages"])
+                
+                # Update state flags
+                for state_key in ["requirements_gathered", "architecture_ready", "plan_finalized"]:
+                    if state_key in value:
+                        current_state[state_key] = value[state_key]
+            
+            # If we hit END (because of Human-in-the-loop in Planner), we break to wait for next input
+            if current_state.get("plan_finalized"):
+                print("\nSystem: Implementation Plan Finalized! Exiting...")
+                return
+        
+        if not current_state["requirements_gathered"]:
+            print("\n(Waiting for your response to Planner...)")
 
 if __name__ == "__main__":
     run_chat()
