@@ -87,6 +87,17 @@ if prompt := st.chat_input("Enter your request here (e.g., 'Create a video shari
     if not validate_prompt(prompt):
         st.error("System: Malicious input detected. Request blocked.")
     else:
+        if st.session_state.get("plan_finalized", False):
+            # Auto-reset if the user starts a new task after finishing one
+            st.session_state.messages = []
+            st.session_state.requirements_gathered = False
+            st.session_state.architecture_ready = False
+            st.session_state.plan_finalized = False
+            st.session_state.user_approval_pending = False
+            st.session_state.debate_loop_count = 0
+            st.session_state.sequence = ["sequenceDiagram", "    participant User"]
+            st.rerun()
+
         # Display user input
         st.chat_message("user").write(prompt)
         

@@ -50,7 +50,24 @@ def moderator_node(state: AgentState, config: RunnableConfig):
     skill_content = load_skill("moderator")
     
     # Inject loop constraint
-    skill_content += f"\n\nCRITICAL: Current Debate Loop: {current_loop}/6. (1 loop = 1 route. You need 6 loops to complete 3 full rounds). If loop < 6, you MUST route to PLANNER or ARCHITECTURE. You are FORBIDDEN from using [ASK_USER]."
+    if current_loop < 6:
+        skill_content += f"\n\nCRITICAL: Current Debate Loop: {current_loop}/6. (1 loop = 1 route. You need 6 loops to complete 3 full rounds). If loop < 6, you MUST route to PLANNER or ARCHITECTURE. You are FORBIDDEN from using [ASK_USER]."
+    else:
+        template_text = ""
+        try:
+            with open(os.path.join(".agents", "AGENTS.md"), "r", encoding="utf-8") as f:
+                agents_content = f.read()
+                import re
+                match = re.search(r'```markdown\n(.*?)```', agents_content, re.DOTALL)
+                if match:
+                    template_text = match.group(1).strip()
+        except Exception:
+            pass
+            
+        skill_content += "\n\nCRITICAL: The 3 rounds of debate are complete! You MUST now output the final implementation plan EXACTLY matching the template format below. DO NOT ABBREVIATE. Fill in ALL sections in detail.\n\n"
+        if template_text:
+            skill_content += f"```markdown\n{template_text}\n```\n\n"
+        skill_content += "Do NOT output a route tag. You MUST append [ASK_USER] at the end."
     
     sys_msg = SystemMessage(content=skill_content)
     # Moderator evaluates the whole conversation
