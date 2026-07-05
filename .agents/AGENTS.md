@@ -11,7 +11,9 @@ The A2A (Agent-to-Agent) architecture separates roles into **Planner** (business
 5. **Moderator** forwards these requirements to **Architecture** for system design (Tech stack, Database, Microservices/Monolithic, Infrastructure).
 6. **Architecture** returns the technical blueprint to the **Moderator**.
 7. **Moderator** conducts a Review: Compares the architecture against requirements, estimates costs (AWS, API...), and time (man-months). If unreasonable, requests Architecture to revise.
-8. Once finalized, the **Moderator** synthesizes everything and outputs the `Implementation_Plan.md` file.
+8. **3-Round Debate Rule**: The Moderator MUST force the Planner and Architecture to debate exactly 3 times (3 full rounds of nitpicking) before asking the user for final approval.
+9. **Web Search Rule**: The Moderator MUST use Web Search at least once to verify facts, constraints, or best practices during the debate.
+10. Once the 3 rounds are completed, the **Moderator** synthesizes everything and outputs the `Implementation_Plan.md` file.
 
 ## 2. Output Template (`Implementation_Plan.md`)
 
