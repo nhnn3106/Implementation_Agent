@@ -99,8 +99,22 @@ if prompt := st.chat_input("Enter your request here (e.g., 'Create a video shari
         }
         
         # Run through the graph
+        from langchain_core.callbacks.base import BaseCallbackHandler
+        stream_placeholder = st.empty()
+        
+        class StreamlitTokenHandler(BaseCallbackHandler):
+            def __init__(self, placeholder):
+                self.placeholder = placeholder
+                self.text = ""
+            def on_llm_new_token(self, token: str, **kwargs):
+                self.text += token
+                self.placeholder.info("🤖 *Agent is thinking in real-time...*\n\n" + self.text + " ▌")
+
+        config = {"callbacks": [StreamlitTokenHandler(stream_placeholder)]}
+
         with st.spinner("Agents are thinking..."):
-            for output in app.stream(current_state):
+            for output in app.stream(current_state, config=config):
+                stream_placeholder.empty() # Clear live stream when node finishes
                 for key, value in output.items():
                     if "messages" in value:
                         # Extract the new messages
@@ -146,16 +160,21 @@ if prompt := st.chat_input("Enter your request here (e.g., 'Create a video shari
 # Finalization UI
 if st.session_state.user_approval_pending and not st.session_state.plan_finalized:
     st.info("The Moderator is waiting for your approval. You can provide feedback in the chat to revise it, OR finalize it below.")
+    
+    plan_content = ""
+    for msg in reversed(st.session_state.messages):
+        if isinstance(msg, AIMessage) and "[ASK_USER]" in msg.content:
+            plan_content = msg.content
+            break
+            
+    with st.expander("📄 Review Final Implementation Plan", expanded=True):
+        st.markdown(re.sub(r'<thought>.*?</thought>', '', plan_content, flags=re.DOTALL).replace("[ASK_USER]", "").strip())
+        
     with st.form("finalize_form"):
         reqs = st.text_area("Additional Requirements or Notes (Bổ sung thêm kiến thức hay yêu cầu):")
         submitted = st.form_submit_button("✅ Chốt sổ (Export Plan)")
         if submitted:
             history = [{"role": "user" if isinstance(m, HumanMessage) else "assistant", "content": m.content} for m in st.session_state.messages]
-            plan_content = ""
-            for msg in reversed(st.session_state.messages):
-                if isinstance(msg, AIMessage) and "[ASK_USER]" in msg.content:
-                    plan_content = msg.content
-                    break
             
             data = {
                 "project_status": "Approved",
