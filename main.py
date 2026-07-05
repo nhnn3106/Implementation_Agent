@@ -119,11 +119,15 @@ def route_from_moderator(state: AgentState):
         if isinstance(last_msg, SystemMessage) and "Web Search Results for" in last_msg.content:
             return "moderator"
             
-        content = last_msg.content.upper()
-        if "[ROUTE: PLANNER]" in content:
-            return "planner"
-        if "[ROUTE: ARCHITECTURE]" in content:
-            return "architecture"
+        # Parse route
+        import re
+        route_match = re.search(r'\[ROUTE:\s*(.*?)\]', last_msg.content, re.IGNORECASE)
+        if route_match:
+            target = route_match.group(1).strip().upper()
+            if target == "PLANNER":
+                return "planner"
+            elif target == "ARCHITECTURE":
+                return "architecture"
             
     # Default to END if no route specified
     return END
