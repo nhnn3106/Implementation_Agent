@@ -94,3 +94,7 @@ To best support the development process, agents must adhere to the following aut
 3. **Chạy liên tục cho đến khi đạt mục tiêu (Run until goal is met):**
    - Sau khi thực hiện bất kỳ chỉnh sửa code nào, Agent không được dừng lại giữa chừng mà phải tiếp tục chạy (thực thi, test, vòng lặp debug) cho đến khi hoàn thành triệt để mục tiêu (goal) đã được đề ra từ đầu.
    - Khi cần thiết, người dùng có thể kích hoạt slash command `/goal` để Agent vào trạng thái làm việc xuyên suốt, không ngừng nghỉ cho đến khi có kết quả cuối cùng.
+
+4. **Chain of Thought (Quá trình tự suy):**
+   - Before answering or making any decisions, every Agent MUST write its internal reasoning, step-by-step logic, and self-reflection inside `<thought> ... </thought>` XML tags.
+   - The final response should be placed outside and after these tags.

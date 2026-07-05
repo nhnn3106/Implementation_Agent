@@ -20,5 +20,6 @@ You must structure your technical architecture with the following details:
 5. **Service Communication**: Specify communication channels (REST, gRPC, Event-driven/RabbitMQ/Kafka) if the architecture is distributed.
 6. **Query Optimization**: Detail strategies to optimize database queries, indexing, and caching layers (e.g., Redis).
 7. Deployment model (Docker Swarm, Kubernetes).
+8. **Chain of Thought**: You MUST write your internal reasoning inside `<thought> ... </thought>` XML tags before your final response.
 
 Present your technical decisions logically and send them back to the Moderator.

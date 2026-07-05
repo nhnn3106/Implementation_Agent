@@ -52,6 +52,20 @@ def render_sequence():
             height=600, scrolling=True
         )
 
+import re
+
+def render_assistant_message(content: str):
+    thought_match = re.search(r'<thought>(.*?)</thought>', content, re.DOTALL)
+    if thought_match:
+        thought_process = thought_match.group(1).strip()
+        role_match = re.match(r'^\*\*(.*?)\*\*:', content)
+        role_name = role_match.group(1) if role_match else "Agent"
+        with st.expander(f"🧠 {role_name} Thinking Process"):
+            st.write(thought_process)
+        content = re.sub(r'<thought>.*?</thought>', '', content, flags=re.DOTALL).strip()
+    if content:
+        st.write(content)
+
 # Render initial sequence
 render_sequence()
 # Render chat history
@@ -59,7 +73,8 @@ for msg in st.session_state.messages:
     if isinstance(msg, HumanMessage):
         st.chat_message("user").write(msg.content)
     elif isinstance(msg, AIMessage):
-        st.chat_message("assistant").write(msg.content)
+        with st.chat_message("assistant"):
+            render_assistant_message(msg.content)
 
 # Input
 if prompt := st.chat_input("Enter your request here (e.g., 'Create a video sharing app')..."):
@@ -91,8 +106,10 @@ if prompt := st.chat_input("Enter your request here (e.g., 'Create a video shari
                         # Extract the new messages
                         new_messages = value["messages"]
                         for n_msg in new_messages:
-                            st.chat_message("assistant").write(f"**{key.upper()}**: {n_msg.content}")
-                            st.session_state.messages.append(AIMessage(content=f"**{key.upper()}**: {n_msg.content}"))
+                            full_content = f"**{key.upper()}**: {n_msg.content}"
+                            with st.chat_message("assistant"):
+                                render_assistant_message(full_content)
+                            st.session_state.messages.append(AIMessage(content=full_content))
                             
                     # Track sequence dynamically
                     if key == "planner":
