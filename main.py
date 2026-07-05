@@ -69,10 +69,6 @@ def moderator_node(state: AgentState):
                 SystemMessage(content=f"Web Search Results for '{query}':\n{search_text}\n\nUse this information to continue evaluating the architecture.")
             ]}
             
-        if "[EXPORT_PLAN]" in response.content:
-            res = export_plan_to_json(response.content)
-            return {"messages": [AIMessage(content=f"System: {res}")], "plan_finalized": True, "user_approval_pending": False}
-            
         if "[ASK_USER]" in response.content:
             return {"messages": [AIMessage(content=response.content)], "user_approval_pending": True}
         

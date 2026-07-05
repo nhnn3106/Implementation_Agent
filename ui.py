@@ -80,4 +80,34 @@ if prompt := st.chat_input("Enter your request here (e.g., 'Create a video shari
             if st.session_state.plan_finalized:
                 st.success("Implementation Plan Finalized and Exported!")
             elif st.session_state.user_approval_pending:
-                st.info("The Moderator is waiting for your approval. Please type 'Duyệt', 'Ok', 'Accept' to save the plan, or provide feedback to revise it.")
+                st.info("Agents finished their evaluation. Awaiting your action.")
+
+# Finalization UI
+if st.session_state.user_approval_pending and not st.session_state.plan_finalized:
+    st.info("The Moderator is waiting for your approval. You can provide feedback in the chat to revise it, OR finalize it below.")
+    with st.form("finalize_form"):
+        reqs = st.text_area("Additional Requirements or Notes (Bổ sung thêm kiến thức hay yêu cầu):")
+        submitted = st.form_submit_button("✅ Chốt sổ (Export Plan)")
+        if submitted:
+            history = [{"role": "user" if isinstance(m, HumanMessage) else "assistant", "content": m.content} for m in st.session_state.messages]
+            plan_content = ""
+            for msg in reversed(st.session_state.messages):
+                if isinstance(msg, AIMessage) and "[ASK_USER]" in msg.content:
+                    plan_content = msg.content
+                    break
+            
+            data = {
+                "project_status": "Approved",
+                "additional_requirements": reqs,
+                "implementation_plan": plan_content,
+                "conversation_history": history
+            }
+            from tools import export_plan_to_json
+            res = export_plan_to_json(data)
+            st.session_state.plan_finalized = True
+            st.session_state.user_approval_pending = False
+            st.success(res)
+            st.rerun()
+
+if st.session_state.plan_finalized:
+    st.success("Implementation Plan Finalized and Exported to ./output/ !")

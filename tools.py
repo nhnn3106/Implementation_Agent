@@ -13,14 +13,20 @@ def calculate_infrastructure_cost(server_type: str, instances: int) -> str:
     return f"Estimated cost for {instances}x {server_type}: ${total}/month"
 
 import json
+import os
 
-def export_plan_to_json(plan_content: str, filename: str = "implementation_plan.json") -> str:
+def export_plan_to_json(data: dict, filename: str = "final_plan.json") -> str:
     """Exports the final implementation plan to a JSON file."""
     try:
-        data = {"implementation_plan": plan_content}
-        with open(filename, "w", encoding="utf-8") as f:
+        # Ensure output directory exists
+        output_dir = "output"
+        os.makedirs(output_dir, exist_ok=True)
+        
+        filepath = os.path.join(output_dir, filename)
+        
+        with open(filepath, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=4)
-        return f"Successfully saved to {filename}"
+        return f"Successfully saved to {filepath}"
     except Exception as e:
         return f"Error saving file: {e}"
 
