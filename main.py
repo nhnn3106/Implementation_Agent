@@ -63,10 +63,8 @@ def planner_node(state: AgentState):
     
     print(f"Planner Output:\n{response.content}\n")
     
-    if "[END_QA]" in response.content:
-        return {"requirements_gathered": True, "messages": [AIMessage(content=response.content)]}
-    else:
-        return {"messages": [AIMessage(content=response.content)]}
+    # Planner now operates autonomously and immediately finalizes requirements
+    return {"requirements_gathered": True, "messages": [AIMessage(content=response.content)]}
 
 def architecture_node(state: AgentState):
     print("\n--- ARCHITECTURE ---")
@@ -102,10 +100,8 @@ def route_from_moderator(state: AgentState):
 
 workflow.add_conditional_edges("moderator", route_from_moderator)
 
-def route_from_planner(state: AgentState):
-    if state.get("requirements_gathered"):
-        return "moderator"
-    return END # Stop and wait for user input
+# Planner always routes back to moderator autonomously
+workflow.add_edge("planner", "moderator")
 
 workflow.add_edge("architecture", "moderator")
 
